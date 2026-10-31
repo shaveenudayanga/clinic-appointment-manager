@@ -36,16 +36,32 @@ class AppointmentStatus(StrEnum):
     NO_SHOW = "no_show"
 
 
+# Names are not unique: two people can share a name (and a patient's date of
+# birth). The id is the only identity used by the database and the API. The
+# provider number / MRN is a unique human-readable identifier shown next to
+# the name so staff can tell people apart.
+
+
 class Practitioner(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
+    provider_number: str = Field(unique=True, index=True)
     full_name: str
     specialty: str
+
+    @property
+    def label(self) -> str:
+        return f"{self.full_name} ({self.specialty}, Provider No. {self.provider_number})"
 
 
 class Patient(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
+    mrn: str = Field(unique=True, index=True)  # medical record number
     full_name: str
     date_of_birth: date
+
+    @property
+    def label(self) -> str:
+        return f"{self.full_name} (MRN {self.mrn}, DOB {self.date_of_birth:%d/%m/%Y})"
 
 
 class Appointment(SQLModel, table=True):

@@ -12,7 +12,7 @@ converted to clinic time only for the opening-hours check and for messages.
 from collections.abc import Iterable
 from datetime import date, datetime, time, timedelta
 
-from app.models import Appointment, AppointmentStatus
+from app.models import Appointment, AppointmentStatus, Patient, Practitioner
 from app.timezones import format_clinic, to_clinic
 
 # Clinic schedule (clinic local time)
@@ -105,20 +105,24 @@ def check_no_double_booking(
     *,
     start_utc: datetime,
     end_utc: datetime,
-    practitioner_id: int,
-    patient_id: int,
+    practitioner: Practitioner,
+    patient: Patient,
     existing: Iterable[Appointment],
     exclude_id: int | None = None,
-    practitioner_name: str = "The practitioner",
-    patient_name: str = "The patient",
 ) -> None:
     """Raise DoubleBookingError if the practitioner OR the patient is already busy.
+
+    People are matched by id only, never by name, because names are not
+    unique. The message uses each person's label (name plus provider number
+    or MRN) so it is clear who is busy.
 
     `existing` may contain any appointments (any status, any people); this
     function decides which ones matter. Pass `exclude_id` when editing so the
     appointment does not clash with itself.
     """
     _require_aware(start_utc, end_utc)
+    if practitioner.id is None or patient.id is None:
+        raise ValueError("Practitioner and patient must be saved (have ids) before checking clashes")
 
     for other in sorted(existing, key=lambda a: a.start_utc):
         if exclude_id is not None and other.id == exclude_id:
@@ -129,10 +133,10 @@ def check_no_double_booking(
             continue
 
         when = f"from {format_clinic(other.start_utc)} to {to_clinic(other.end_utc):%H:%M}"
-        if other.practitioner_id == practitioner_id:
-            raise DoubleBookingError(f"{practitioner_name} already has an appointment {when}.", other)
-        if other.patient_id == patient_id:
-            raise DoubleBookingError(f"{patient_name} already has an appointment {when}.", other)
+        if other.practitioner_id == practitioner.id:
+            raise DoubleBookingError(f"{practitioner.label} already has an appointment {when}.", other)
+        if other.patient_id == patient.id:
+            raise DoubleBookingError(f"{patient.label} already has an appointment {when}.", other)
 
 
 def check_can_edit(current_status: AppointmentStatus) -> None:
