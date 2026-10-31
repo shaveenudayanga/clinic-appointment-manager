@@ -84,28 +84,38 @@ export default function RegisterPatient({ initialName, onDone, onBack }: Props) 
             submit();
           }}
         >
-          <label className="block">
-            <span className="mb-1 block font-medium">Full name</span>
+          <div>
+            <label htmlFor="register-name" className="mb-1 block font-medium">
+              Full name
+            </label>
             <input
+              id="register-name"
               className="field"
               value={fullName}
               autoFocus
               onChange={(e) => setFullName(e.target.value)}
               aria-invalid={!!fieldError("full_name")}
+              aria-describedby={fieldError("full_name") ? "register-name-error" : undefined}
             />
-            {fieldError("full_name") && <FieldError message={fieldError("full_name")!} />}
-          </label>
-          <label className="block">
-            <span className="mb-1 block font-medium">Date of birth</span>
+            {fieldError("full_name") && <FieldError id="register-name-error" message={fieldError("full_name")!} />}
+          </div>
+          <div>
+            <label htmlFor="register-dob" className="mb-1 block font-medium">
+              Date of birth
+            </label>
             <input
+              id="register-dob"
               type="date"
               className="field w-44"
               value={dateOfBirth}
               onChange={(e) => setDateOfBirth(e.target.value)}
               aria-invalid={!!fieldError("date_of_birth")}
+              aria-describedby={fieldError("date_of_birth") ? "register-dob-error" : undefined}
             />
-            {fieldError("date_of_birth") && <FieldError message={fieldError("date_of_birth")!} />}
-          </label>
+            {fieldError("date_of_birth") && (
+              <FieldError id="register-dob-error" message={fieldError("date_of_birth")!} />
+            )}
+          </div>
           <div>
             <span className="mb-1 block font-medium">MRN</span>
             <span className="text-muted">Assigned automatically</span>

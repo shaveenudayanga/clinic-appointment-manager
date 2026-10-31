@@ -9,7 +9,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en-AU" className="h-full">
-      <body className="h-full antialiased">{children}</body>
+      {/* Browser extensions and the VS Code browser add attributes to <body>
+          (e.g. class="vsc-initialized") before React hydrates. That is not a
+          bug in this app, so ignore attribute mismatches on <body> only. */}
+      <body className="h-full antialiased" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { api, ApiError, type Appointment, type ClinicInfo, type Patient, type Practitioner } from "@/lib/api";
 import { dateOf, fromMinutes, quarterHours, shortDate, timeOf, toMinutes } from "@/lib/time";
 import PatientPicker, { FieldError } from "./PatientPicker";
@@ -55,6 +55,8 @@ export default function BookingPanel({ target, clinic, practitioners, onClose, o
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [registering, setRegistering] = useState<string | null>(null); // search text, while registering
 
+  const id = useId();
+  const errorId = (field: FormField) => (errors[field] ? `${id}-${field}-error` : undefined);
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (existing) headingRef.current?.focus();
@@ -166,14 +168,18 @@ export default function BookingPanel({ target, clinic, practitioners, onClose, o
         }}
       >
         <fieldset disabled={!editable || saving} className="space-y-4">
-          <label className="block">
-            <span className="mb-1 block font-medium">Practitioner</span>
+          <div>
+            <label htmlFor={`${id}-practitioner`} className="mb-1 block font-medium">
+              Practitioner
+            </label>
             <select
+              id={`${id}-practitioner`}
               className="field"
               value={practitionerId}
               autoFocus={!existing && practitionerId === ""}
               onChange={(e) => setPractitionerId(e.target.value ? Number(e.target.value) : "")}
               aria-invalid={!!errors.practitioner}
+              aria-describedby={errorId("practitioner")}
             >
               <option value="">Choose a practitioner</option>
               {practitioners.map((p) => (
@@ -182,8 +188,8 @@ export default function BookingPanel({ target, clinic, practitioners, onClose, o
                 </option>
               ))}
             </select>
-            {errors.practitioner && <FieldError message={errors.practitioner} />}
-          </label>
+            {errors.practitioner && <FieldError id={errorId("practitioner")} message={errors.practitioner} />}
+          </div>
 
           <div>
             <span className="mb-1 block font-medium">Patient</span>
@@ -205,6 +211,7 @@ export default function BookingPanel({ target, clinic, practitioners, onClose, o
               value={date}
               onChange={(e) => setDate(e.target.value)}
               aria-invalid={!!errors.start}
+              aria-describedby={errorId("start")}
             />
           </label>
 
@@ -217,6 +224,7 @@ export default function BookingPanel({ target, clinic, practitioners, onClose, o
                   value={start}
                   onChange={(e) => setStart(e.target.value)}
                   aria-invalid={!!errors.start}
+                  aria-describedby={errorId("start")}
                 >
                   <option value="">--:--</option>
                   {startTimes.map((t) => (
@@ -233,6 +241,7 @@ export default function BookingPanel({ target, clinic, practitioners, onClose, o
                   value={length}
                   onChange={(e) => setLength(Number(e.target.value))}
                   aria-invalid={!!errors.length}
+                  aria-describedby={errorId("length")}
                 >
                   {lengths.map((m) => (
                     <option key={m} value={m}>
@@ -243,8 +252,8 @@ export default function BookingPanel({ target, clinic, practitioners, onClose, o
               </label>
               <span className="pb-1.5 text-muted">{ends ? `Ends ${ends}` : ""}</span>
             </div>
-            {errors.start && <FieldError message={errors.start} />}
-            {errors.length && <FieldError message={errors.length} />}
+            {errors.start && <FieldError id={errorId("start")} message={errors.start} />}
+            {errors.length && <FieldError id={errorId("length")} message={errors.length} />}
           </div>
 
           <label className="block">
@@ -293,7 +302,7 @@ export default function BookingPanel({ target, clinic, practitioners, onClose, o
               </button>
             )}
           </div>
-          {errors.outcome && <FieldError message={errors.outcome} />}
+          {errors.outcome && <FieldError id={errorId("outcome")} message={errors.outcome} />}
         </div>
       )}
 
