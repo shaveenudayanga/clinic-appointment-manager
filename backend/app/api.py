@@ -1,6 +1,7 @@
 """HTTP routes. Thin: parse input, call services, shape output."""
 
 from datetime import date, datetime, timedelta
+from functools import lru_cache
 
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
@@ -40,7 +41,14 @@ def get_booking_parser() -> nl_booking.Parser:
     """The Gemini caller. A dependency so tests can swap in a fake and never call the real API."""
     if not settings.gemini_api_key:
         raise FeatureDisabledError()
-    return nl_booking.GeminiParser(settings.gemini_api_key, settings.gemini_model)
+    return _gemini_parser(settings.gemini_api_key, settings.gemini_model)
+
+
+@lru_cache(maxsize=1)
+def _gemini_parser(api_key: str, model: str) -> nl_booking.GeminiParser:
+    # One client for the app's lifetime, so its HTTPS connection is reused
+    # (measured: ~7 s for the first call on a new connection, ~1 s after).
+    return nl_booking.GeminiParser(api_key, model)
 
 
 def to_read(appointment: Appointment, now: datetime) -> AppointmentRead:
