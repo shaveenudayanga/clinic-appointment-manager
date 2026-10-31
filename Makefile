@@ -4,7 +4,7 @@ PYTHON ?= python3
 VENV := backend/.venv
 BIN := $(VENV)/bin
 
-.PHONY: setup backend-setup frontend-setup seed backend frontend test
+.PHONY: setup backend-setup frontend-setup seed backend frontend test e2e screenshots
 
 setup: backend-setup frontend-setup
 
@@ -27,3 +27,12 @@ frontend:
 
 test:
 	cd backend && .venv/bin/pytest
+
+# Browser tests: start their own backend (port 8001, backend/e2e.db) and frontend (port 3001).
+e2e:
+	cd frontend && npx playwright install chromium && npx playwright test
+
+# Re-take the README screenshots in docs/screenshots/.
+screenshots:
+	mkdir -p docs/screenshots
+	cd frontend && npx playwright install chromium && SCREENSHOTS=1 npx playwright test

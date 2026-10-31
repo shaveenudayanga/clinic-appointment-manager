@@ -29,4 +29,6 @@ Appointment management web app for a specialist clinic in Sydney. Built as a tim
 - Phase 3 (services, API including GET /api/clinic, API and concurrency tests, 109 passing): done.
 - Backend additions for the frontend (error fields, allowed_actions, patient search and registration with duplicate check, clinic day info; 154 passing): done.
 - Phase 4 (Next.js appointment book: day grid, booking panel, patient search/registration with duplicate warning; checked in headless Chrome): done.
+- After phase 4: only Booked appointments can be cancelled; body hydration warning from browser extensions suppressed; Playwright suite (`make e2e`, 3 flows, own servers on ports 8001/3001 and `backend/e2e.db`); README screenshots in `docs/screenshots/` (`make screenshots`). 161 backend tests passing.
 - Next: phase 5 (optional natural-language booking), then 6 (README).
+- README must list under known limitations: the Starlette `httpx` deprecation warning in test output (kept `httpx` on purpose); slow `make e2e` start under WSL mirrored networking (closed localhost ports time out instead of refusing).
