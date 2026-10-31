@@ -6,19 +6,30 @@ is. Nothing here re-implements a rule.
 
 from datetime import date, datetime
 
-from sqlalchemy import or_, text
+from sqlalchemy import and_, or_, text
 from sqlmodel import Session, select
 
 from app import rules
 from app.models import Appointment, AppointmentStatus, Patient, Practitioner
-from app.schemas import AppointmentCreate, AppointmentUpdate
-from app.timezones import clinic_day_bounds_utc, to_clinic, to_utc
+from app.schemas import AppointmentCreate, AppointmentUpdate, PatientCreate
+from app.timezones import clinic_day_bounds_utc, clinic_today, to_clinic, to_utc
 
 
 class NotFoundError(Exception):
-    def __init__(self, message: str):
+    def __init__(self, message: str, field: rules.ErrorField | None = None):
         super().__init__(message)
         self.message = message
+        self.field = field
+
+
+class PossibleDuplicateError(Exception):
+    """A patient with the same name and date of birth already exists."""
+
+    def __init__(self, matches: list[Patient]):
+        super().__init__("possible duplicate")
+        self.matches = matches
+        count = "A patient" if len(matches) == 1 else f"{len(matches)} patients"
+        self.message = f"{count} with this name and date of birth already exist{'s' if len(matches) == 1 else ''}."
 
 
 def create_appointment(session: Session, data: AppointmentCreate, now: datetime) -> Appointment:
@@ -121,15 +132,68 @@ def get_appointment(session: Session, appointment_id: int) -> Appointment:
 def get_practitioner(session: Session, practitioner_id: int) -> Practitioner:
     practitioner = session.get(Practitioner, practitioner_id)
     if practitioner is None:
-        raise NotFoundError(f"Practitioner {practitioner_id} not found.")
+        raise NotFoundError(f"Practitioner {practitioner_id} not found.", "practitioner_id")
     return practitioner
 
 
 def get_patient(session: Session, patient_id: int) -> Patient:
     patient = session.get(Patient, patient_id)
     if patient is None:
-        raise NotFoundError(f"Patient {patient_id} not found.")
+        raise NotFoundError(f"Patient {patient_id} not found.", "patient_id")
     return patient
+
+
+def search_patients(session: Session, query: str, limit: int = 20) -> list[Patient]:
+    """Find patients by name (every word must appear), MRN, or date of birth
+    (dd/mm/yyyy or yyyy-mm-dd). An empty query returns everyone, up to `limit`."""
+    query = query.strip()
+    statement = select(Patient)
+    if query:
+        by_name = and_(*[Patient.full_name.icontains(word, autoescape=True) for word in query.split()])
+        alternatives = [by_name, Patient.mrn.contains(query, autoescape=True)]
+        dob = _parse_date(query)
+        if dob is not None:
+            alternatives.append(Patient.date_of_birth == dob)
+        statement = statement.where(or_(*alternatives))
+    return list(session.exec(statement.order_by(Patient.full_name, Patient.id).limit(limit)))
+
+
+def register_patient(session: Session, data: PatientCreate, now: datetime) -> Patient:
+    """Create a patient with the next free MRN.
+
+    If a patient with the same name and date of birth exists, raise
+    PossibleDuplicateError unless the caller confirmed with allow_duplicate.
+    """
+    _begin_write(session)
+    full_name = rules.normalise_name(data.full_name)
+    rules.validate_new_patient(full_name, data.date_of_birth, clinic_today(now))
+
+    if not data.allow_duplicate:
+        same_birthday = session.exec(select(Patient).where(Patient.date_of_birth == data.date_of_birth))
+        matches = rules.find_possible_duplicates(full_name, data.date_of_birth, same_birthday)
+        if matches:
+            raise PossibleDuplicateError(matches)
+
+    patient = Patient(mrn=_next_mrn(session), full_name=full_name, date_of_birth=data.date_of_birth)
+    session.add(patient)
+    session.commit()
+    session.refresh(patient)
+    return patient
+
+
+def _next_mrn(session: Session) -> str:
+    """One more than the highest numeric MRN, as six digits."""
+    numbers = [int(mrn) for mrn in session.exec(select(Patient.mrn)) if mrn.isdigit()]
+    return f"{max(numbers, default=0) + 1:06d}"
+
+
+def _parse_date(text_value: str) -> date | None:
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(text_value, fmt).date()
+        except ValueError:
+            pass
+    return None
 
 
 def _appointments_near(

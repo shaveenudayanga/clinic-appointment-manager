@@ -27,4 +27,5 @@ Appointment management web app for a specialist clinic in Sydney. Built as a tim
 - Phase 1 (models, rules, seed) and the identity change: done.
 - Phase 2 (rule tests, 79 passing on Python 3.11 and 3.14): done.
 - Phase 3 (services, API including GET /api/clinic, API and concurrency tests, 109 passing): done.
+- Backend additions for the frontend (error fields, allowed_actions, patient search and registration with duplicate check, clinic day info; 154 passing): done.
 - Next: phase 4 (frontend), then 5 (optional natural-language booking), 6 (README).

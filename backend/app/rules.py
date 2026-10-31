@@ -3,7 +3,8 @@
 The functions are pure. They take the current time and any existing
 appointments as arguments and never touch the database, so each rule can be
 tested on its own. They raise BookingValidationError (the API returns 422) or
-DoubleBookingError (the API returns 409) with a message fit to show a user.
+DoubleBookingError (the API returns 409) with a message fit to show a user and,
+where it applies, the request field the problem is about.
 
 All datetimes passed in must be timezone-aware. Times are compared in UTC and
 converted to clinic time only for the opening-hours check and for messages.
@@ -11,6 +12,7 @@ converted to clinic time only for the opening-hours check and for messages.
 
 from collections.abc import Iterable
 from datetime import date, datetime, time, timedelta
+from typing import Literal
 
 from app.models import Appointment, AppointmentStatus, Patient, Practitioner
 from app.timezones import format_clinic, to_clinic
@@ -35,23 +37,28 @@ BLOCKING_STATUSES = {
 OUTCOME_STATUSES = {AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW}
 
 
+# Request fields an error can point at, so the form can show it in the right place.
+ErrorField = Literal["practitioner_id", "patient_id", "start", "end", "status", "full_name", "date_of_birth"]
+
+
 class BookingRuleError(Exception):
     """Base class for rule violations. `message` is safe to show to users."""
 
-    def __init__(self, message: str):
+    def __init__(self, message: str, field: ErrorField | None = None):
         super().__init__(message)
         self.message = message
+        self.field = field
 
 
 class BookingValidationError(BookingRuleError):
-    """The requested appointment is invalid on its own (bad times, bad status)."""
+    """The request is invalid on its own (bad times, bad status, bad patient details)."""
 
 
 class DoubleBookingError(BookingRuleError):
     """The requested appointment clashes with an existing one."""
 
-    def __init__(self, message: str, clash: Appointment):
-        super().__init__(message)
+    def __init__(self, message: str, field: ErrorField, clash: Appointment):
+        super().__init__(message, field)
         self.clash = clash
 
 
@@ -75,29 +82,28 @@ def validate_times(start_utc: datetime, end_utc: datetime, now_utc: datetime) ->
     _require_aware(start_utc, end_utc, now_utc)
 
     if end_utc <= start_utc:
-        raise BookingValidationError("End time must be after the start time.")
+        raise BookingValidationError("End time must be after the start time.", "end")
 
     duration = end_utc - start_utc
     if duration < MIN_DURATION or duration > MAX_DURATION:
         raise BookingValidationError(
             f"Appointments must be between {_minutes(MIN_DURATION)} and "
-            f"{_minutes(MAX_DURATION)} minutes long (this one is {_minutes(duration)})."
+            f"{_minutes(MAX_DURATION)} minutes long (this one is {_minutes(duration)}).",
+            "end",
         )
 
     if start_utc < now_utc:
-        raise BookingValidationError("Appointments can't be booked in the past.")
+        raise BookingValidationError("Appointments can't be booked in the past.", "start")
 
     local_start, local_end = to_clinic(start_utc), to_clinic(end_utc)
     if local_start.weekday() not in CLINIC_WEEKDAYS:
-        raise BookingValidationError("The clinic is only open Monday to Friday.")
-    if (
-        local_start.date() != local_end.date()
-        or local_start.time() < CLINIC_OPEN
-        or local_end.time() > CLINIC_CLOSE
-    ):
+        raise BookingValidationError("The clinic is only open Monday to Friday.", "start")
+    hours = f"{CLINIC_OPEN:%H:%M} to {CLINIC_CLOSE:%H:%M} (Sydney time)"
+    if local_start.time() < CLINIC_OPEN or local_start.time() >= CLINIC_CLOSE:
+        raise BookingValidationError(f"Appointments must be within clinic hours, {hours}.", "start")
+    if local_start.date() != local_end.date() or local_end.time() > CLINIC_CLOSE:
         raise BookingValidationError(
-            f"Appointments must be within clinic hours, "
-            f"{CLINIC_OPEN:%H:%M} to {CLINIC_CLOSE:%H:%M} (Sydney time)."
+            f"This appointment would finish after closing (clinic hours are {hours}).", "end"
         )
 
 
@@ -134,9 +140,11 @@ def check_no_double_booking(
 
         when = f"from {format_clinic(other.start_utc)} to {to_clinic(other.end_utc):%H:%M}"
         if other.practitioner_id == practitioner.id:
-            raise DoubleBookingError(f"{practitioner.label} already has an appointment {when}.", other)
+            raise DoubleBookingError(
+                f"{practitioner.label} already has an appointment {when}.", "practitioner_id", other
+            )
         if other.patient_id == patient.id:
-            raise DoubleBookingError(f"{patient.label} already has an appointment {when}.", other)
+            raise DoubleBookingError(f"{patient.label} already has an appointment {when}.", "patient_id", other)
 
 
 def check_can_edit(current_status: AppointmentStatus) -> None:
@@ -152,8 +160,65 @@ def validate_status(status: AppointmentStatus, start_utc: datetime, now_utc: dat
     _require_aware(start_utc, now_utc)
     if status in OUTCOME_STATUSES and start_utc > now_utc:
         raise BookingValidationError(
-            "An appointment can only be marked completed or no-show after it has started."
+            "An appointment can only be marked completed or no-show after it has started.", "status"
         )
+
+
+def allowed_actions(status: AppointmentStatus, start_utc: datetime, now_utc: datetime) -> list[str]:
+    """What staff may do with an appointment right now, worked out from the rules above.
+
+    The frontend uses this to decide which buttons to show, so it never has to
+    repeat a rule itself.
+    """
+    try:
+        check_can_edit(status)
+    except BookingValidationError:
+        return []
+    actions = ["edit", "cancel"]
+    for action, outcome in (("complete", AppointmentStatus.COMPLETED), ("no_show", AppointmentStatus.NO_SHOW)):
+        if status == outcome:
+            continue
+        try:
+            validate_status(outcome, start_utc, now_utc)
+        except BookingValidationError:
+            continue
+        actions.append(action)
+    return actions
+
+
+# --- Patients -----------------------------------------------------------------
+
+
+def normalise_name(name: str) -> str:
+    """Trim and collapse spaces, e.g. '  Ruwan   Perera ' -> 'Ruwan Perera'."""
+    return " ".join(name.split())
+
+
+def validate_new_patient(full_name: str, date_of_birth: date, today: date) -> None:
+    if not normalise_name(full_name):
+        raise BookingValidationError("Please enter the patient's full name.", "full_name")
+    if date_of_birth > today:
+        raise BookingValidationError("Date of birth can't be in the future.", "date_of_birth")
+
+
+def find_possible_duplicates(full_name: str, date_of_birth: date, existing: Iterable[Patient]) -> list[Patient]:
+    """Existing patients with the same name (ignoring case and spacing) and date of birth.
+
+    These may be the same person, so staff are asked before registering
+    another record. They may also be different people, which is allowed.
+    """
+    wanted = normalise_name(full_name).casefold()
+    return [
+        p for p in existing
+        if p.date_of_birth == date_of_birth and normalise_name(p.full_name).casefold() == wanted
+    ]
+
+
+# --- Clinic days --------------------------------------------------------------
+
+
+def is_clinic_day(day: date) -> bool:
+    return day.weekday() in CLINIC_WEEKDAYS
 
 
 def next_clinic_day(day: date) -> date:

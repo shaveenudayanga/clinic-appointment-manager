@@ -7,11 +7,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import router
+from app.api import patient_read, router
 from app.config import settings
 from app.rules import BookingValidationError, DoubleBookingError
 from app.seed import seed_if_empty
-from app.services import NotFoundError
+from app.services import NotFoundError, PossibleDuplicateError
 
 
 @asynccontextmanager
@@ -31,28 +31,40 @@ app.add_middleware(
 app.include_router(router)
 
 
-# Every error response has the same shape: {"detail": "<message for the user>"}.
+# Every error response has the same shape:
+# {"detail": "<message for the user>", "code": "<kind>", "field": "<request field or null>"}
+
+
+def error(status: int, code: str, detail: str, field: str | None = None, **extra) -> JSONResponse:
+    return JSONResponse(status_code=status, content={"detail": detail, "code": code, "field": field, **extra})
 
 
 @app.exception_handler(DoubleBookingError)
 def handle_double_booking(_request: Request, exc: DoubleBookingError):
-    return JSONResponse(status_code=409, content={"detail": exc.message})
+    return error(409, "double_booking", exc.message, exc.field)
 
 
 @app.exception_handler(BookingValidationError)
 def handle_booking_validation(_request: Request, exc: BookingValidationError):
-    return JSONResponse(status_code=422, content={"detail": exc.message})
+    return error(422, "invalid", exc.message, exc.field)
 
 
 @app.exception_handler(NotFoundError)
 def handle_not_found(_request: Request, exc: NotFoundError):
-    return JSONResponse(status_code=404, content={"detail": exc.message})
+    return error(404, "not_found", exc.message, exc.field)
+
+
+@app.exception_handler(PossibleDuplicateError)
+def handle_possible_duplicate(_request: Request, exc: PossibleDuplicateError):
+    matches = [patient_read(p).model_dump(mode="json") for p in exc.matches]
+    return error(409, "possible_duplicate", exc.message, matches=matches)
 
 
 @app.exception_handler(RequestValidationError)
 def handle_request_validation(_request: Request, exc: RequestValidationError):
-    problems = []
-    for error in exc.errors():
-        field = ".".join(str(part) for part in error["loc"] if part != "body")
-        problems.append(f"{field}: {error['msg']}" if field else error["msg"])
-    return JSONResponse(status_code=422, content={"detail": "; ".join(problems)})
+    problems, fields = [], []
+    for err in exc.errors():
+        field = ".".join(str(part) for part in err["loc"] if part not in ("body", "query", "path"))
+        fields.append(field)
+        problems.append(f"{field}: {err['msg']}" if field else err["msg"])
+    return error(422, "invalid", "; ".join(problems), fields[0] if fields else None)

@@ -11,6 +11,7 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=BACKEND_DIR / ".env", extra="ignore")
 
+    clinic_name: str = "Demo Specialist Clinic"
     database_url: str = ""
     frontend_origin: str = "http://localhost:3000"
     gemini_api_key: str = ""

@@ -8,11 +8,16 @@ from app.models import AppointmentStatus as Status
 from app.rules import (
     BookingValidationError,
     DoubleBookingError,
+    allowed_actions,
     check_can_edit,
     check_no_double_booking,
+    find_possible_duplicates,
+    is_clinic_day,
     next_clinic_day,
+    normalise_name,
     overlaps,
     previous_clinic_day,
+    validate_new_patient,
     validate_status,
     validate_times,
 )
@@ -317,3 +322,90 @@ def test_next_clinic_day(day, expected):
 )
 def test_previous_clinic_day(day, expected):
     assert previous_clinic_day(day) == expected
+
+
+# --- Error fields -------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "start, end, field",
+    [
+        ("2026-11-03T10:00", "2026-11-03T09:45", "end"),  # end before start
+        ("2026-11-03T10:00", "2026-11-03T12:30", "end"),  # too long
+        ("2026-11-07T10:00", "2026-11-07T10:30", "start"),  # Saturday
+        ("2026-11-03T07:45", "2026-11-03T08:15", "start"),  # before opening
+        ("2026-11-03T17:45", "2026-11-03T18:15", "end"),  # finishes after closing
+    ],
+)
+def test_time_errors_name_the_field(start, end, field):
+    with pytest.raises(BookingValidationError) as err:
+        times(start, end)
+    assert err.value.field == field
+
+
+def test_clash_errors_name_the_field():
+    with pytest.raises(DoubleBookingError) as practitioner_err:
+        book("2026-11-03T15:00", "2026-11-03T15:30", pat=NGUYEN)
+    with pytest.raises(DoubleBookingError) as patient_err:
+        book("2026-11-03T15:00", "2026-11-03T15:30", prac=DR_CHEN)
+    assert practitioner_err.value.field == "practitioner_id"
+    assert patient_err.value.field == "patient_id"
+
+
+# --- allowed_actions() ----------------------------------------------------------
+
+START = sydney("2026-11-03T10:00")
+
+
+@pytest.mark.parametrize(
+    "status, now, expected",
+    [
+        (Status.BOOKED, sydney("2026-11-03T09:59"), ["edit", "cancel"]),
+        (Status.BOOKED, sydney("2026-11-03T10:00"), ["edit", "cancel", "complete", "no_show"]),
+        (Status.COMPLETED, sydney("2026-11-03T11:00"), ["edit", "cancel", "no_show"]),
+        (Status.NO_SHOW, sydney("2026-11-03T11:00"), ["edit", "cancel", "complete"]),
+        (Status.CANCELLED, sydney("2026-11-03T11:00"), []),
+    ],
+)
+def test_allowed_actions(status, now, expected):
+    assert allowed_actions(status, START, now) == expected
+
+
+# --- Patients --------------------------------------------------------------------
+
+
+def test_normalise_name():
+    assert normalise_name("  Ruwan   Perera ") == "Ruwan Perera"
+
+
+def test_validate_new_patient():
+    validate_new_patient("Kamal Silva", date(1990, 4, 3), today=date(2026, 11, 2))
+    validate_new_patient("Baby Silva", date(2026, 11, 2), today=date(2026, 11, 2))  # born today
+    with pytest.raises(BookingValidationError) as err:
+        validate_new_patient("Kamal Silva", date(2026, 11, 3), today=date(2026, 11, 2))
+    assert err.value.field == "date_of_birth"
+    with pytest.raises(BookingValidationError) as err:
+        validate_new_patient("   ", date(1990, 4, 3), today=date(2026, 11, 2))
+    assert err.value.field == "full_name"
+
+
+def test_possible_duplicates_match_name_and_birthday_ignoring_case_and_spacing():
+    existing = [PERERA, OTHER_PERERA, NGUYEN]  # both Pereras share a birthday
+    matches = find_possible_duplicates(" ruwan  PERERA ", PERERA.date_of_birth, existing)
+    assert [p.mrn for p in matches] == ["000123", "000133"]
+
+
+def test_same_name_different_birthday_is_not_a_possible_duplicate():
+    assert find_possible_duplicates("Ruwan Perera", date(1970, 1, 1), [PERERA, OTHER_PERERA]) == []
+
+
+def test_different_name_same_birthday_is_not_a_possible_duplicate():
+    assert find_possible_duplicates("Ruwan Pereira", PERERA.date_of_birth, [PERERA]) == []
+
+
+@pytest.mark.parametrize(
+    "day, expected",
+    [(date(2026, 11, 6), True), (date(2026, 11, 7), False), (date(2026, 11, 8), False)],
+)
+def test_is_clinic_day(day, expected):
+    assert is_clinic_day(day) is expected

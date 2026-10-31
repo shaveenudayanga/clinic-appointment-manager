@@ -28,6 +28,15 @@ class PatientRead(BaseModel):
     label: str
 
 
+class PatientCreate(BaseModel):
+    full_name: str = Field(max_length=100)
+    date_of_birth: date
+    allow_duplicate: bool = Field(
+        default=False,
+        description="Register even if a patient with the same name and date of birth exists",
+    )
+
+
 class AppointmentCreate(BaseModel):
     practitioner_id: int
     patient_id: int
@@ -56,12 +65,14 @@ class AppointmentRead(BaseModel):
     start_local: datetime
     end_local: datetime
     status: AppointmentStatus
+    allowed_actions: list[str] = Field(description="Any of: edit, cancel, complete, no_show")
     notes: str
     created_at: datetime
     updated_at: datetime
 
 
 class ClinicInfo(BaseModel):
+    name: str
     timezone: str
     today: date
     default_date: date = Field(description="Today if the clinic is open, otherwise the next clinic day")
@@ -70,3 +81,8 @@ class ClinicInfo(BaseModel):
     min_minutes: int
     max_minutes: int
     nl_booking: bool
+    # About the requested date (or default_date if none was given)
+    selected_date: date
+    is_open: bool
+    previous_date: date = Field(description="The clinic day before selected_date")
+    next_date: date = Field(description="The clinic day after selected_date")

@@ -73,6 +73,7 @@ def test_clinic_info_on_a_weekday(client, monkeypatch):
     monkeypatch.setattr(settings, "gemini_api_key", "")
     info = client.get("/api/clinic").json()
     assert info == {
+        "name": "Demo Specialist Clinic",
         "timezone": "Australia/Sydney",
         "today": "2026-11-02",
         "default_date": "2026-11-02",
@@ -81,7 +82,26 @@ def test_clinic_info_on_a_weekday(client, monkeypatch):
         "min_minutes": 15,
         "max_minutes": 120,
         "nl_booking": False,
+        "selected_date": "2026-11-02",
+        "is_open": True,
+        "previous_date": "2026-10-30",
+        "next_date": "2026-11-03",
     }
+
+
+@pytest.mark.parametrize(
+    "selected, is_open, previous, next_",
+    [
+        ("2026-11-06", True, "2026-11-05", "2026-11-09"),  # Friday: next is Monday
+        ("2026-11-07", False, "2026-11-06", "2026-11-09"),  # Saturday: closed
+        ("2026-11-09", True, "2026-11-06", "2026-11-10"),  # Monday: previous is Friday
+    ],
+)
+def test_clinic_info_for_a_chosen_date(client, selected, is_open, previous, next_):
+    info = client.get("/api/clinic", params={"date": selected}).json()
+    assert (info["selected_date"], info["is_open"], info["previous_date"], info["next_date"]) == (
+        selected, is_open, previous, next_,
+    )
 
 
 def test_clinic_default_date_skips_the_weekend(client, clock):
@@ -290,3 +310,147 @@ def test_day_view_is_sorted_and_filtered_by_sydney_date(client):
 
 def test_day_view_requires_a_date(client):
     assert client.get("/api/appointments").status_code == 422
+
+
+# --- Errors point at the field they are about --------------------------------
+
+
+@pytest.mark.parametrize(
+    "kwargs, field",
+    [
+        ({"start": "2026-11-02T06:00", "end": "2026-11-02T06:30"}, "start"),  # past
+        ({"start": "2026-11-03T07:30", "end": "2026-11-03T08:00"}, "start"),  # before opening
+        ({"start": "2026-11-03T17:45", "end": "2026-11-03T18:15"}, "end"),  # finishes after closing
+        ({"start": "2026-11-03T10:00", "end": "2026-11-03T10:10"}, "end"),  # too short
+        ({"practitioner": 99}, "practitioner_id"),
+        ({"patient": 99}, "patient_id"),
+    ],
+)
+def test_errors_name_the_field(client, kwargs, field):
+    body = book(client, **kwargs).json()
+    assert body["field"] == field
+    assert body["detail"]
+
+
+def test_clash_errors_name_the_field(client):
+    book(client)
+    practitioner_clash = book(client, patient=NGUYEN).json()
+    patient_clash = book(client, practitioner=CHEN).json()
+    assert (practitioner_clash["code"], practitioner_clash["field"]) == ("double_booking", "practitioner_id")
+    assert (patient_clash["code"], patient_clash["field"]) == ("double_booking", "patient_id")
+
+
+def test_malformed_body_names_the_first_field(client):
+    body = client.post("/api/appointments", json={"practitioner_id": SILVA, "patient_id": PERERA}).json()
+    assert (body["code"], body["field"]) == ("invalid", "start")
+
+
+# --- Allowed actions -----------------------------------------------------------
+
+
+def test_allowed_actions_follow_the_rules(client, clock):
+    appointment_id = book(client).json()["id"]
+    assert client.get(f"/api/appointments/{appointment_id}").json()["allowed_actions"] == ["edit", "cancel"]
+
+    clock["now"] = sydney("2026-11-03T15:05")
+    assert client.get(f"/api/appointments/{appointment_id}").json()["allowed_actions"] == [
+        "edit", "cancel", "complete", "no_show",
+    ]
+
+    completed = client.patch(f"/api/appointments/{appointment_id}", json={"status": "completed"}).json()
+    assert completed["allowed_actions"] == ["edit", "cancel", "no_show"]
+
+    cancelled = client.post(f"/api/appointments/{appointment_id}/cancel").json()
+    assert cancelled["allowed_actions"] == []
+
+
+# --- Patient search ------------------------------------------------------------
+
+
+def search(client, q):
+    return [p["mrn"] for p in client.get("/api/patients", params={"q": q}).json()]
+
+
+def test_search_by_name_returns_every_same_name_patient(client):
+    assert search(client, "perera") == ["000123", "000133"]
+    assert search(client, "ruwan PERERA") == ["000123", "000133"]
+    assert search(client, "perera ruwan") == ["000123", "000133"]  # word order doesn't matter
+
+
+def test_search_by_mrn(client):
+    assert search(client, "000128") == ["000128"]
+
+
+@pytest.mark.parametrize("q", ["12/04/1968", "1968-04-12"])
+def test_search_by_date_of_birth(client, q):
+    assert search(client, q) == ["000123", "000133"]
+
+
+def test_search_with_no_match_is_empty(client):
+    assert search(client, "kamal silva") == []
+
+
+def test_search_treats_wildcards_literally(client):
+    assert search(client, "%") == []
+
+
+def test_empty_search_lists_everyone(client):
+    assert len(search(client, "")) == 3
+
+
+# --- Patient registration ------------------------------------------------------
+
+
+def register(client, full_name="Kamal Silva", date_of_birth="1990-04-03", **extra):
+    return client.post("/api/patients", json={"full_name": full_name, "date_of_birth": date_of_birth, **extra})
+
+
+def test_register_assigns_the_next_mrn(client):
+    response = register(client)
+    assert response.status_code == 201
+    assert response.json() == {
+        "id": 4,
+        "mrn": "000134",
+        "full_name": "Kamal Silva",
+        "date_of_birth": "1990-04-03",
+        "label": "Kamal Silva (MRN 000134, DOB 03/04/1990)",
+    }
+    assert register(client, full_name="Asha Silva").json()["mrn"] == "000135"
+
+
+def test_register_tidies_spacing_in_the_name(client):
+    assert register(client, full_name="  Kamal   Silva ").json()["full_name"] == "Kamal Silva"
+
+
+def test_register_same_name_and_birthday_returns_matches(client):
+    response = register(client, full_name="ruwan  perera", date_of_birth="1968-04-12")
+    assert response.status_code == 409
+    body = response.json()
+    assert body["code"] == "possible_duplicate"
+    assert body["detail"] == "2 patients with this name and date of birth already exist."
+    assert [m["label"] for m in body["matches"]] == [
+        "Ruwan Perera (MRN 000123, DOB 12/04/1968)",
+        "Ruwan Perera (MRN 000133, DOB 12/04/1968)",
+    ]
+    assert search(client, "perera") == ["000123", "000133"]  # nothing was saved
+
+
+def test_register_anyway_creates_a_new_patient(client):
+    response = register(client, full_name="Ruwan Perera", date_of_birth="1968-04-12", allow_duplicate=True)
+    assert response.status_code == 201
+    assert response.json()["mrn"] == "000134"
+    assert search(client, "perera") == ["000123", "000133", "000134"]
+
+
+def test_same_name_different_birthday_is_not_a_duplicate(client):
+    assert register(client, full_name="Ruwan Perera", date_of_birth="1970-01-01").status_code == 201
+
+
+def test_register_rejects_future_birth_date(client):
+    body = register(client, date_of_birth="2026-11-03").json()
+    assert (body["field"], body["detail"]) == ("date_of_birth", "Date of birth can't be in the future.")
+
+
+def test_register_rejects_blank_name(client):
+    body = register(client, full_name="   ").json()
+    assert body["field"] == "full_name"
