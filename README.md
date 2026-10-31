@@ -2,6 +2,8 @@
 
 An appointment book for a specialist clinic in Sydney. Front-desk staff see one day at a time, with one column per practitioner. They book, edit, cancel and record outcomes from a panel on the right. The backend stops double bookings for both the practitioner and the patient. An optional box lets staff type a booking in plain words, such as "Book Mr Perera with Dr Silva next Tuesday at 3pm", and fills in the form for them to check.
 
+Demo video: https://youtu.be/oO-TfXAa86s
+
 ![The appointment book](docs/screenshots/appointment-book.png)
 
 All names and records in the demo data are invented.
