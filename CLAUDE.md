@@ -21,7 +21,7 @@ Appointment management web app for a specialist clinic in Sydney. Built as a tim
 - Work in phases and stop after each one with a summary and a "what to check" list. Commit each phase separately.
 - Run `make test` before every commit. Add tests for every new rule.
 - Ask instead of guessing. Prefer simple and correct over clever.
-- Don't write the "How I used AI" section of the README. The author writes it.
+- The README has no "How I used AI" section; the author decided to leave it out. Don't add one.
 
 ## Progress
 - Phase 1 (models, rules, seed) and the identity change: done.
@@ -31,5 +31,5 @@ Appointment management web app for a specialist clinic in Sydney. Built as a tim
 - Phase 4 (Next.js appointment book: day grid, booking panel, patient search/registration with duplicate warning; checked in headless Chrome): done.
 - After phase 4: only Booked appointments can be cancelled; body hydration warning from browser extensions suppressed; Playwright suite (`make e2e`, 3 flows, own servers on ports 8001/3001 and `backend/e2e.db`); README screenshots in `docs/screenshots/` (`make screenshots`). 161 backend tests passing.
 - Phase 5 (natural-language booking with Gemini `gemini-3.5-flash-lite` via the Interactions API, `store=false`; only the sentence and date context are sent; names matched in the backend, ambiguous/unknown names listed for the user; never saves; see `docs/ai-booking.md`; 192 backend tests passing on 3.11 and 3.14): done. Checked against the real Gemini API on 1 Nov 2026 (dates, ambiguous/unknown names, prompt injection, full UI flow).
-- Next: phase 6 (README).
-- README must list under known limitations: the Starlette `httpx` deprecation warning in test output (kept `httpx` on purpose); slow `make e2e` start under WSL mirrored networking (closed localhost ports time out instead of refusing).
+- Dates people read are shown in words ("DOB 3 Jan 1998", "Mon 2 Nov 2026" next to date pickers); the API stays ISO. 195 backend tests, 3 e2e flows.
+- Phase 6 (README for a reviewer, screenshots in `docs/screenshots/`): done. All phases complete.
