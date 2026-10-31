@@ -36,7 +36,7 @@ test("book an appointment from a free slot", async ({ page }) => {
 
   await page.getByRole("button", { name: `Book with ${SILVA} at 09:00` }).click();
   await expect(page.getByRole("heading", { name: "Book appointment" })).toBeVisible();
-  await expect(page.getByLabel("Practitioner")).toHaveValue(/\d+/);
+  await expect(page.getByLabel("Practitioner", { exact: true })).toHaveValue(/\d+/);
   await expect(page.getByLabel("Start")).toHaveValue("09:00");
 
   await choosePatient(page, "000125", "Liam O'Connor (MRN 000125, DOB 27/01/1992)");
@@ -60,7 +60,7 @@ test("a clash shows its error under the practitioner field", async ({ page }) =>
   await bookButton(page).click();
 
   const message = /^Dr Anika Silva \(Cardiology, Provider No\. 000101AA\) already has an appointment from .* 11:00 to 11:30\.$/;
-  await expect(page.getByLabel("Practitioner")).toHaveAccessibleDescription(message);
+  await expect(page.getByLabel("Practitioner", { exact: true })).toHaveAccessibleDescription(message);
   await expect(page.getByLabel("Start")).not.toHaveAttribute("aria-invalid", "true");
   await expect(page.getByLabel("Notes")).toHaveValue("Kept after the error");
   if (saveScreenshots) await page.screenshot({ path: "../docs/screenshots/clash-error.png" });

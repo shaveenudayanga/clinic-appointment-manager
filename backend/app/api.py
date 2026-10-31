@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
 
-from app import rules, services
+from app import nl_booking, rules, services
 from app.config import settings
 from app.db import get_session
 from app.models import Appointment, Patient, Practitioner
@@ -14,8 +14,12 @@ from app.schemas import (
     AppointmentRead,
     AppointmentUpdate,
     ClinicInfo,
+    NLBookingRead,
+    NLBookingRequest,
     PatientCreate,
+    PatientMatches,
     PatientRead,
+    PractitionerMatches,
     PractitionerRead,
 )
 from app.timezones import CLINIC_TZ, clinic_today, now_utc, to_clinic
@@ -26,6 +30,17 @@ router = APIRouter(prefix="/api")
 def get_now() -> datetime:
     """The current time. A dependency so tests can freeze the clock."""
     return now_utc()
+
+
+class FeatureDisabledError(Exception):
+    message = "Natural-language booking is not set up. Add GEMINI_API_KEY to backend/.env to turn it on."
+
+
+def get_booking_parser() -> nl_booking.Parser:
+    """The Gemini caller. A dependency so tests can swap in a fake and never call the real API."""
+    if not settings.gemini_api_key:
+        raise FeatureDisabledError()
+    return nl_booking.GeminiParser(settings.gemini_api_key, settings.gemini_model)
 
 
 def to_read(appointment: Appointment, now: datetime) -> AppointmentRead:
@@ -111,6 +126,44 @@ def list_appointments(
 ):
     """Appointments starting on `date` (a Sydney date), in time order, including cancelled ones."""
     return [to_read(a, now) for a in services.list_appointments_for_day(session, date, practitioner_id)]
+
+
+@router.post("/appointments/parse", response_model=NLBookingRead)
+def parse_booking_sentence(
+    data: NLBookingRequest,
+    session: Session = Depends(get_session),
+    now: datetime = Depends(get_now),
+    parser: nl_booking.Parser = Depends(get_booking_parser),
+):
+    """Turn a sentence into suggested form values. Saves nothing.
+
+    Only the sentence, today's date/time and the time zone go to the model.
+    Names come back as written and are matched here, against the database.
+    """
+    parsed = nl_booking.parse_sentence(data.text, now, parser)
+
+    practitioners = None
+    if parsed.practitioner_name:
+        found = nl_booking.match_people(
+            parsed.practitioner_name, session.exec(select(Practitioner)), lambda p: p.provider_number
+        )
+        practitioners = PractitionerMatches(
+            query=parsed.practitioner_name,
+            matches=[PractitionerRead(**p.model_dump(), label=p.label) for p in found],
+        )
+    patients = None
+    if parsed.patient_name:
+        found = nl_booking.match_people(parsed.patient_name, session.exec(select(Patient)), lambda p: p.mrn)
+        patients = PatientMatches(query=parsed.patient_name, matches=[patient_read(p) for p in found])
+
+    return NLBookingRead(
+        practitioner=practitioners,
+        patient=patients,
+        date=parsed.date,
+        start=parsed.start_time,
+        duration_minutes=parsed.duration_minutes,
+        notes=parsed.notes,
+    )
 
 
 @router.get("/appointments/{appointment_id}", response_model=AppointmentRead)

@@ -1,8 +1,17 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { api, ApiError, type Appointment, type ClinicInfo, type Patient, type Practitioner } from "@/lib/api";
+import {
+  api,
+  ApiError,
+  type Appointment,
+  type ClinicInfo,
+  type NLBookingResult,
+  type Patient,
+  type Practitioner,
+} from "@/lib/api";
 import { dateOf, fromMinutes, quarterHours, shortDate, timeOf, toMinutes } from "@/lib/time";
+import NLBookingBox from "./NLBookingBox";
 import PatientPicker, { FieldError } from "./PatientPicker";
 import RegisterPatient from "./RegisterPatient";
 import { STATUS_BADGE, STATUS_LABEL } from "./status";
@@ -54,6 +63,9 @@ export default function BookingPanel({ target, clinic, practitioners, onClose, o
   const [saving, setSaving] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [registering, setRegistering] = useState<string | null>(null); // search text, while registering
+  // Names from a typed sentence that matched several records, or none. The user must choose.
+  const [practitionerChoice, setPractitionerChoice] = useState<NLBookingResult["practitioner"]>(null);
+  const [patientChoice, setPatientChoice] = useState<NLBookingResult["patient"]>(null);
 
   const id = useId();
   const errorId = (field: FormField) => (errors[field] ? `${id}-${field}-error` : undefined);
@@ -80,6 +92,27 @@ export default function BookingPanel({ target, clinic, practitioners, onClose, o
     } finally {
       setSaving(false);
     }
+  };
+
+  /** Fill the form from a parsed sentence. A name is only filled in when it
+   *  matches exactly one record; otherwise the user chooses. */
+  const applySentence = (r: NLBookingResult) => {
+    setErrors({});
+    setGeneralError(null);
+    if (r.practitioner) {
+      const only = r.practitioner.matches.length === 1 ? r.practitioner.matches[0] : null;
+      setPractitionerId(only ? only.id : "");
+      setPractitionerChoice(only ? null : r.practitioner);
+    }
+    if (r.patient) {
+      const only = r.patient.matches.length === 1 ? r.patient.matches[0] : null;
+      setPatient(only);
+      setPatientChoice(only ? null : r.patient);
+    }
+    if (r.date) setDate(r.date);
+    if (r.start) setStart(r.start);
+    if (r.duration_minutes) setLength(r.duration_minutes);
+    if (r.notes) setNotes(r.notes);
   };
 
   const submit = () => {
@@ -111,6 +144,7 @@ export default function BookingPanel({ target, clinic, practitioners, onClose, o
         onBack={() => setRegistering(null)}
         onDone={(p) => {
           setPatient(p);
+          setPatientChoice(null);
           setErrors((e) => ({ ...e, patient: undefined }));
           setRegistering(null);
         }}
@@ -118,7 +152,9 @@ export default function BookingPanel({ target, clinic, practitioners, onClose, o
     );
   }
 
-  const startTimes = quarterHours(clinic.opens, clinic.closes);
+  const quarterStarts = quarterHours(clinic.opens, clinic.closes);
+  // A typed sentence may give a time that is not on the list; show it so the backend can judge it.
+  const startTimes = start && !quarterStarts.includes(start) ? [...quarterStarts, start].sort() : quarterStarts;
   const lengths = LENGTHS.includes(length) ? LENGTHS : [...LENGTHS, length].sort((a, b) => a - b);
   const ends = start ? fromMinutes(toMinutes(start) + length) : null;
   const canComplete = existing?.allowed_actions.includes("complete");
@@ -154,6 +190,8 @@ export default function BookingPanel({ target, clinic, practitioners, onClose, o
         </p>
       )}
 
+      {!existing && clinic.nl_booking && <NLBookingBox onResult={applySentence} />}
+
       {existing?.status === "cancelled" && (
         <p className="border-b border-line px-4 py-2 text-muted">
           This appointment was cancelled. To book again, choose a free time in the book.
@@ -188,14 +226,40 @@ export default function BookingPanel({ target, clinic, practitioners, onClose, o
                 </option>
               ))}
             </select>
+            {practitionerChoice && (
+              <NameChoice
+                kind="practitioner"
+                query={practitionerChoice.query}
+                options={practitionerChoice.matches}
+                onChoose={(p) => {
+                  setPractitionerId(p.id);
+                  setPractitionerChoice(null);
+                }}
+              />
+            )}
             {errors.practitioner && <FieldError id={errorId("practitioner")} message={errors.practitioner} />}
           </div>
 
           <div>
             <span className="mb-1 block font-medium">Patient</span>
+            {patientChoice && (
+              <NameChoice
+                kind="patient"
+                query={patientChoice.query}
+                options={patientChoice.matches}
+                onChoose={(p) => {
+                  setPatient(p);
+                  setPatientChoice(null);
+                }}
+                onRegister={() => setRegistering(withoutTitle(patientChoice.query))}
+              />
+            )}
             <PatientPicker
               selected={patient}
-              onSelect={setPatient}
+              onSelect={(p) => {
+                setPatient(p);
+                if (p) setPatientChoice(null);
+              }}
               onRegisterNew={setRegistering}
               error={errors.patient}
               autoFocus={!existing && practitionerId !== ""}
@@ -339,3 +403,52 @@ export default function BookingPanel({ target, clinic, practitioners, onClose, o
     </section>
   );
 }
+
+/** Shown when a name from a typed sentence matched several records, or none. Never picks one. */
+function NameChoice<T extends { id: number; label: string }>({
+  kind,
+  query,
+  options,
+  onChoose,
+  onRegister,
+}: {
+  kind: "practitioner" | "patient";
+  query: string;
+  options: T[];
+  onChoose: (option: T) => void;
+  onRegister?: () => void;
+}) {
+  if (options.length === 0) {
+    return (
+      <div className="mt-1 border border-noshow bg-noshow-bg px-2 py-1.5 text-noshow-ink" role="status">
+        No {kind} matches &ldquo;{query}&rdquo;.{" "}
+        {kind === "patient" && onRegister ? (
+          <button type="button" className="btn mt-1 block" onClick={onRegister}>
+            Register new patient
+          </button>
+        ) : (
+          "Choose one from the list."
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="mt-1 border border-noshow bg-noshow-bg px-2 py-1.5 text-noshow-ink" role="group" aria-label={`Choose ${kind}`}>
+      <p className="mb-1">
+        {options.length} {kind}s match &ldquo;{query}&rdquo;. Choose one:
+      </p>
+      <ul className="space-y-1">
+        {options.map((option) => (
+          <li key={option.id}>
+            <button type="button" className="btn w-full text-left text-ink" onClick={() => onChoose(option)}>
+              {option.label}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+const TITLES = /^(dr|doctor|mr|mrs|ms|miss|mx|prof|professor)\.?\s+/i;
+const withoutTitle = (name: string) => name.trim().replace(TITLES, "");

@@ -3,6 +3,8 @@ fastapi==0.162.0
 uvicorn==0.54.0
 sqlmodel==0.0.48
 pydantic-settings==2.16.2
+# Natural-language booking (optional; only used when GEMINI_API_KEY is set)
+google-genai==2.34.0
 # Time zone database for zoneinfo (Windows has no system copy)
 tzdata==2026.6
 

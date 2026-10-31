@@ -30,5 +30,6 @@ Appointment management web app for a specialist clinic in Sydney. Built as a tim
 - Backend additions for the frontend (error fields, allowed_actions, patient search and registration with duplicate check, clinic day info; 154 passing): done.
 - Phase 4 (Next.js appointment book: day grid, booking panel, patient search/registration with duplicate warning; checked in headless Chrome): done.
 - After phase 4: only Booked appointments can be cancelled; body hydration warning from browser extensions suppressed; Playwright suite (`make e2e`, 3 flows, own servers on ports 8001/3001 and `backend/e2e.db`); README screenshots in `docs/screenshots/` (`make screenshots`). 161 backend tests passing.
-- Next: phase 5 (optional natural-language booking), then 6 (README).
+- Phase 5 (natural-language booking with Gemini `gemini-3.5-flash-lite` via the Interactions API, `store=false`; only the sentence and date context are sent; names matched in the backend, ambiguous/unknown names listed for the user; never saves; see `docs/ai-booking.md`; 192 backend tests passing on 3.11 and 3.14): done.
+- Next: phase 6 (README).
 - README must list under known limitations: the Starlette `httpx` deprecation warning in test output (kept `httpx` on purpose); slow `make e2e` start under WSL mirrored networking (closed localhost ports time out instead of refusing).

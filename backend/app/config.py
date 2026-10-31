@@ -15,7 +15,9 @@ class Settings(BaseSettings):
     database_url: str = ""
     frontend_origin: str = "http://localhost:3000"
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
+    # Checked against https://ai.google.dev/gemini-api/docs/models (Oct 2026):
+    # the stable, fast, low-cost model Google recommends for new projects.
+    gemini_model: str = "gemini-3.5-flash-lite"
 
     @field_validator("database_url")
     @classmethod

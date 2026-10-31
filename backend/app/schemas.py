@@ -71,6 +71,32 @@ class AppointmentRead(BaseModel):
     updated_at: datetime
 
 
+class NLBookingRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=300, description="e.g. Book Mr Perera with Dr Silva next Tuesday at 3pm")
+
+
+class PractitionerMatches(BaseModel):
+    query: str = Field(description="The name as the model read it from the sentence")
+    matches: list[PractitionerRead] = Field(description="Every practitioner it could mean; empty if none")
+
+
+class PatientMatches(BaseModel):
+    query: str
+    matches: list[PatientRead]
+
+
+class NLBookingRead(BaseModel):
+    """Suggested form values. Nothing has been saved. A name with several
+    matches must be chosen by the user; a name with none is reported as such."""
+
+    practitioner: PractitionerMatches | None = Field(description="null if the sentence named no practitioner")
+    patient: PatientMatches | None = Field(description="null if the sentence named no patient")
+    date: date | None
+    start: str | None = Field(description="HH:MM, Sydney time")
+    duration_minutes: int | None
+    notes: str | None
+
+
 class ClinicInfo(BaseModel):
     name: str
     timezone: str

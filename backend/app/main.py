@@ -7,8 +7,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import patient_read, router
+from app.api import FeatureDisabledError, patient_read, router
 from app.config import settings
+from app.nl_booking import NLBookingError
 from app.rules import BookingValidationError, DoubleBookingError
 from app.seed import seed_if_empty
 from app.services import NotFoundError, PossibleDuplicateError
@@ -58,6 +59,16 @@ def handle_not_found(_request: Request, exc: NotFoundError):
 def handle_possible_duplicate(_request: Request, exc: PossibleDuplicateError):
     matches = [patient_read(p).model_dump(mode="json") for p in exc.matches]
     return error(409, "possible_duplicate", exc.message, matches=matches)
+
+
+@app.exception_handler(NLBookingError)
+def handle_nl_booking(_request: Request, exc: NLBookingError):
+    return error(502, "nl_failed", exc.message)
+
+
+@app.exception_handler(FeatureDisabledError)
+def handle_feature_disabled(_request: Request, exc: FeatureDisabledError):
+    return error(404, "nl_disabled", exc.message)
 
 
 @app.exception_handler(RequestValidationError)

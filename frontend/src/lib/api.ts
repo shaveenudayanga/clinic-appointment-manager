@@ -33,6 +33,16 @@ export type Appointment = {
   notes: string;
 };
 
+/** Suggested form values from a typed sentence. Nothing has been saved. */
+export type NLBookingResult = {
+  practitioner: { query: string; matches: Practitioner[] } | null; // null: no practitioner named
+  patient: { query: string; matches: Patient[] } | null;
+  date: string | null;
+  start: string | null; // HH:MM
+  duration_minutes: number | null;
+  notes: string | null;
+};
+
 export type ClinicInfo = {
   name: string;
   timezone: string;
@@ -109,6 +119,7 @@ export const api = {
   createAppointment: (data: AppointmentInput) => request<Appointment>("/api/appointments", post(data)),
   updateAppointment: (id: number, data: Partial<AppointmentInput> & { status?: Status }) =>
     request<Appointment>(`/api/appointments/${id}`, patch(data)),
+  parseBooking: (text: string) => request<NLBookingResult>("/api/appointments/parse", post({ text })),
   cancelAppointment: (id: number) => request<Appointment>(`/api/appointments/${id}/cancel`, { method: "POST" }),
 };
 
