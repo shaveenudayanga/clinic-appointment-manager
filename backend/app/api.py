@@ -59,6 +59,7 @@ def clinic_info(date: date | None = None, now: datetime = Depends(get_now)) -> C
     return ClinicInfo(
         name=settings.clinic_name,
         timezone=CLINIC_TZ.key,
+        now_local=to_clinic(now),
         today=today,
         default_date=default_date,
         opens=f"{rules.CLINIC_OPEN:%H:%M}",

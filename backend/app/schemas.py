@@ -74,6 +74,7 @@ class AppointmentRead(BaseModel):
 class ClinicInfo(BaseModel):
     name: str
     timezone: str
+    now_local: datetime = Field(description="Current time in clinic time, for the 'now' line")
     today: date
     default_date: date = Field(description="Today if the clinic is open, otherwise the next clinic day")
     opens: str

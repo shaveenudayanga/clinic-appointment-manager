@@ -75,6 +75,7 @@ def test_clinic_info_on_a_weekday(client, monkeypatch):
     assert info == {
         "name": "Demo Specialist Clinic",
         "timezone": "Australia/Sydney",
+        "now_local": "2026-11-02T07:00:00+11:00",
         "today": "2026-11-02",
         "default_date": "2026-11-02",
         "opens": "08:00",

@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+/* One calm accent (teal) for the main action and the current selection.
+   Status colours are always paired with a text label. */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --color-page: #f5f5f4;
+  --color-line: #d6d3d1;
+  --color-line-soft: #ebe9e7;
+  --color-ink: #1c1917;
+  --color-muted: #57534e;
+
+  --color-accent: #0f5c63;
+  --color-accent-hover: #0b474d;
+  --color-accent-soft: #e3f0f1;
+
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
+
+  --color-booked: #2f63b0;
+  --color-booked-bg: #e9f0fa;
+  --color-booked-ink: #1d3d6c;
+  --color-completed: #2e7d46;
+  --color-completed-bg: #e8f3eb;
+  --color-completed-ink: #1d4f2c;
+  --color-noshow: #b86e00;
+  --color-noshow-bg: #fcf1e1;
+  --color-noshow-ink: #693f00;
+  --color-cancelled: #a8a29e;
+  --color-cancelled-bg: #f3f2f1;
+  --color-cancelled-ink: #6b6560;
+}
+
+html {
+  font-size: 14px;
+}
+
+body {
+  background: var(--color-page);
+  color: var(--color-ink);
+}
+
+/* Visible keyboard focus everywhere. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Shared form controls: thin borders, small radius, no shadows. */
+.field {
+  width: 100%;
+  border: 1px solid var(--color-line);
+  border-radius: 3px;
+  background: white;
+  padding: 0.3rem 0.5rem;
+  line-height: 1.4;
+}
+.field:disabled {
+  background: var(--color-page);
+  color: var(--color-muted);
+}
+.field[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.btn {
+  border: 1px solid var(--color-line);
+  border-radius: 3px;
+  background: white;
+  padding: 0.3rem 0.75rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) {
+  background: var(--color-page);
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.btn-primary {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: white;
+  font-weight: 600;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+.btn-danger {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+.btn-danger-solid {
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  color: white;
+  font-weight: 600;
+}
