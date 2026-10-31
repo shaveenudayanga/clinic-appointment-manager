@@ -92,7 +92,7 @@ The end-to-end tests book from a free slot, check that a clash shows its error u
 - **Simultaneous bookings:** each booking takes SQLite's write lock before checking for clashes. Two requests for the same slot at the same moment are handled one after the other, so only one succeeds. A test proves this, and it fails without the lock.
 - **Records are kept:** cancelling changes the status and never deletes the appointment.
 - **Natural-language booking is kept safe:**
-  - Only the typed sentence, today's date and the time zone are sent to Gemini. No patient or practitioner records are sent, and Google is told not to store the request.
+  - Only the typed sentence, today's date and the time zone are sent to Gemini. No patient or practitioner records are sent. The request is sent with `store=false`, but on the free tier of the Gemini API Google's terms may still allow it to use the content, so a real clinic would need the paid tier and a data processing agreement.
   - The model's reply is treated as untrusted. It must pass strict validation, or the user sees a plain message.
   - It never saves anything. It only fills in the form, and the user checks it and presses "Book appointment". The normal rules run at that point.
   - It never guesses a person. The backend matches names itself. If a name matches several people, all of them are listed for the user to choose. If it matches nobody, the panel says so.
@@ -126,7 +126,7 @@ To retake the first three, run `make screenshots`.
 - Practitioners come from the demo data only. There is no screen to add or edit them.
 - No public holidays. The clinic is assumed open every weekday.
 - "Next Tuesday" is read as the coming Tuesday. The panel shows the resolved date in words so staff can check it.
-- Names typed into the natural-language box are sent to Google. A real clinic would need a data processing agreement first.
+- Names typed into the natural-language box are sent to Google. The request uses `store=false`, but on the free tier Google's terms may still allow it to use the content. A real clinic would need the paid tier and a data processing agreement.
 - The backend test run prints one warning from Starlette about `httpx`. It is harmless. `httpx` was kept on purpose instead of switching to the newer package.
 - Under WSL with mirrored networking, `make e2e` waits about 4 minutes before the tests start. Playwright checks that ports 8001 and 3001 are free, and in that mode a closed port times out instead of refusing. The tests themselves take a few seconds.
 

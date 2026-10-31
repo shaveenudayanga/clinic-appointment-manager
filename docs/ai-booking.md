@@ -27,7 +27,7 @@ One request to the Gemini Interactions API
 | `system_instruction` | The fixed instructions below, with today's date, weekday, current time and the clinic time zone filled in |
 | `response_format` | JSON, with the schema of `ModelReply` (six nullable fields) |
 | `generation_config` | `temperature: 0` |
-| `store` | `false`, so Google does not keep the interaction. The API stores interactions by default (55 days on the paid tier, 1 day on the free tier) |
+| `store` | `false`. The API keeps interactions by default (55 days on the paid tier, 1 day on the free tier); this asks it not to. See the note below on what this does not cover |
 | `model` | `GEMINI_MODEL` from `.env`, default `gemini-3.5-flash-lite` |
 
 A test runs the real `google-genai` SDK against a fake HTTP transport and
@@ -39,9 +39,13 @@ checks that the request body has exactly these fields.
   provider numbers or dates of birth, no appointments.
 - No previous sentences. Each request stands alone.
 
-The only personal data the model sees is whatever the receptionist types. In
-real use the clinic would need a data processing agreement with Google
-before patient names leave the building. This is a demo with invented names.
+The only personal data the model sees is whatever the receptionist types.
+
+`store=false` only turns off the interaction storage described above. On the
+free tier of the Gemini API, Google's terms may still allow it to use the
+content of requests. A real clinic would need the paid tier and a data
+processing agreement with Google before patient names leave the building.
+This is a demo with invented names.
 
 ## The prompt
 
