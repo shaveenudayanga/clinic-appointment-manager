@@ -155,6 +155,13 @@ def check_can_edit(current_status: AppointmentStatus) -> None:
         )
 
 
+def check_can_cancel(current_status: AppointmentStatus) -> None:
+    """Only a booked appointment can be cancelled. A completed or no-show
+    appointment records what happened and stays as it is."""
+    if current_status != AppointmentStatus.BOOKED:
+        raise BookingValidationError("Only booked appointments can be cancelled.", "status")
+
+
 def validate_status(status: AppointmentStatus, start_utc: datetime, now_utc: datetime) -> None:
     """Completed and No-show can only be recorded once the appointment has started."""
     _require_aware(start_utc, now_utc)
@@ -174,7 +181,12 @@ def allowed_actions(status: AppointmentStatus, start_utc: datetime, now_utc: dat
         check_can_edit(status)
     except BookingValidationError:
         return []
-    actions = ["edit", "cancel"]
+    actions = ["edit"]
+    try:
+        check_can_cancel(status)
+        actions.append("cancel")
+    except BookingValidationError:
+        pass
     for action, outcome in (("complete", AppointmentStatus.COMPLETED), ("no_show", AppointmentStatus.NO_SHOW)):
         if status == outcome:
             continue

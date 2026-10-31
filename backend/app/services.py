@@ -80,6 +80,8 @@ def update_appointment(
     # so staff can still record the outcome of an appointment that has passed.
     if (start_utc, end_utc) != (appointment.start_utc, appointment.end_utc):
         rules.validate_times(start_utc, end_utc, now)
+    if status == AppointmentStatus.CANCELLED:
+        rules.check_can_cancel(appointment.status)
     rules.validate_status(status, start_utc, now)
     if status in rules.BLOCKING_STATUSES:
         rules.check_no_double_booking(

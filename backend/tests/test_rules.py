@@ -9,6 +9,7 @@ from app.rules import (
     BookingValidationError,
     DoubleBookingError,
     allowed_actions,
+    check_can_cancel,
     check_can_edit,
     check_no_double_booking,
     find_possible_duplicates,
@@ -298,6 +299,17 @@ def test_other_appointments_can_be_edited(status):
     check_can_edit(status)
 
 
+def test_booked_appointment_can_be_cancelled():
+    check_can_cancel(Status.BOOKED)
+
+
+@pytest.mark.parametrize("status", [Status.COMPLETED, Status.NO_SHOW, Status.CANCELLED])
+def test_only_booked_appointments_can_be_cancelled(status):
+    with pytest.raises(BookingValidationError, match="Only booked appointments can be cancelled") as err:
+        check_can_cancel(status)
+    assert err.value.field == "status"
+
+
 # --- Clinic days -------------------------------------------------------------
 
 
@@ -362,8 +374,8 @@ START = sydney("2026-11-03T10:00")
     [
         (Status.BOOKED, sydney("2026-11-03T09:59"), ["edit", "cancel"]),
         (Status.BOOKED, sydney("2026-11-03T10:00"), ["edit", "cancel", "complete", "no_show"]),
-        (Status.COMPLETED, sydney("2026-11-03T11:00"), ["edit", "cancel", "no_show"]),
-        (Status.NO_SHOW, sydney("2026-11-03T11:00"), ["edit", "cancel", "complete"]),
+        (Status.COMPLETED, sydney("2026-11-03T11:00"), ["edit", "no_show"]),  # can't be cancelled
+        (Status.NO_SHOW, sydney("2026-11-03T11:00"), ["edit", "complete"]),  # can't be cancelled
         (Status.CANCELLED, sydney("2026-11-03T11:00"), []),
     ],
 )

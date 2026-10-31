@@ -359,10 +359,31 @@ def test_allowed_actions_follow_the_rules(client, clock):
     ]
 
     completed = client.patch(f"/api/appointments/{appointment_id}", json={"status": "completed"}).json()
-    assert completed["allowed_actions"] == ["edit", "cancel", "no_show"]
+    assert completed["allowed_actions"] == ["edit", "no_show"]
 
+
+def test_cancelled_appointment_has_no_actions(client):
+    appointment_id = book(client).json()["id"]
     cancelled = client.post(f"/api/appointments/{appointment_id}/cancel").json()
     assert cancelled["allowed_actions"] == []
+
+
+@pytest.mark.parametrize("outcome", ["completed", "no_show"])
+def test_completed_or_no_show_cannot_be_cancelled(client, clock, outcome):
+    appointment_id = book(client).json()["id"]
+    clock["now"] = sydney("2026-11-03T15:40")
+    client.patch(f"/api/appointments/{appointment_id}", json={"status": outcome})
+    for response in (
+        client.post(f"/api/appointments/{appointment_id}/cancel"),
+        client.patch(f"/api/appointments/{appointment_id}", json={"status": "cancelled"}),
+    ):
+        assert response.status_code == 422
+        assert response.json() == {
+            "detail": "Only booked appointments can be cancelled.",
+            "code": "invalid",
+            "field": "status",
+        }
+    assert client.get(f"/api/appointments/{appointment_id}").json()["status"] == outcome
 
 
 # --- Patient search ------------------------------------------------------------
