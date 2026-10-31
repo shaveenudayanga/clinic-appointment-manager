@@ -10,7 +10,7 @@ import {
   type Patient,
   type Practitioner,
 } from "@/lib/api";
-import { dateOf, fromMinutes, quarterHours, shortDate, timeOf, toMinutes } from "@/lib/time";
+import { dateOf, dayDate, fromMinutes, quarterHours, shortDate, timeOf, toMinutes } from "@/lib/time";
 import NLBookingBox from "./NLBookingBox";
 import PatientPicker, { FieldError } from "./PatientPicker";
 import RegisterPatient from "./RegisterPatient";
@@ -267,17 +267,27 @@ export default function BookingPanel({ target, clinic, practitioners, onClose, o
             />
           </div>
 
-          <label className="block">
-            <span className="mb-1 block font-medium">Date</span>
-            <input
-              type="date"
-              className="field w-44"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              aria-invalid={!!errors.start}
-              aria-describedby={errorId("start")}
-            />
-          </label>
+          <div>
+            <label htmlFor={`${id}-date`} className="mb-1 block font-medium">
+              Date
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                id={`${id}-date`}
+                type="date"
+                className="field w-44"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                aria-invalid={!!errors.start}
+                aria-describedby={[date ? `${id}-date-words` : "", errorId("start") ?? ""].join(" ").trim() || undefined}
+              />
+              {date && (
+                <span id={`${id}-date-words`} className="font-medium">
+                  {dayDate(date)}
+                </span>
+              )}
+            </div>
+          </div>
 
           <div>
             <div className="flex items-end gap-3">

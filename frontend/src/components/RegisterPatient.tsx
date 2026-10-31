@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { api, ApiError, type Patient } from "@/lib/api";
+import { birthDate } from "@/lib/time";
 import { FieldError } from "./PatientPicker";
 
 type Props = {
@@ -103,15 +104,26 @@ export default function RegisterPatient({ initialName, onDone, onBack }: Props) 
             <label htmlFor="register-dob" className="mb-1 block font-medium">
               Date of birth
             </label>
-            <input
-              id="register-dob"
-              type="date"
-              className="field w-44"
-              value={dateOfBirth}
-              onChange={(e) => setDateOfBirth(e.target.value)}
-              aria-invalid={!!fieldError("date_of_birth")}
-              aria-describedby={fieldError("date_of_birth") ? "register-dob-error" : undefined}
-            />
+            <div className="flex items-center gap-3">
+              <input
+                id="register-dob"
+                type="date"
+                className="field w-44"
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+                aria-invalid={!!fieldError("date_of_birth")}
+                aria-describedby={
+                  [dateOfBirth ? "register-dob-words" : "", fieldError("date_of_birth") ? "register-dob-error" : ""]
+                    .join(" ")
+                    .trim() || undefined
+                }
+              />
+              {dateOfBirth && (
+                <span id="register-dob-words" className="font-medium">
+                  {birthDate(dateOfBirth)}
+                </span>
+              )}
+            </div>
             {fieldError("date_of_birth") && (
               <FieldError id="register-dob-error" message={fieldError("date_of_birth")!} />
             )}

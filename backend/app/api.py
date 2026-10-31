@@ -109,7 +109,7 @@ def patient_read(patient: Patient) -> PatientRead:
 
 @router.get("/patients", response_model=list[PatientRead])
 def list_patients(q: str = "", session: Session = Depends(get_session)):
-    """Search by name, MRN or date of birth (dd/mm/yyyy or yyyy-mm-dd). Up to 20 results."""
+    """Search by name, MRN or date of birth (3 Jan 1998, 03/01/1998 day first, or 1998-01-03). Up to 20 results."""
     return [patient_read(p) for p in services.search_patients(session, q)]
 
 

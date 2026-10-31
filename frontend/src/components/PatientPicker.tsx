@@ -83,7 +83,7 @@ export default function PatientPicker({ selected, onSelect, onRegisterNew, error
         ref={inputRef}
         id={`${id}-input`}
         className="field"
-        placeholder="Name, MRN or date of birth (dd/mm/yyyy)"
+        placeholder="Name, MRN or date of birth (e.g. 3 Jan 1998)"
         autoComplete="off"
         autoFocus={autoFocus}
         value={query}

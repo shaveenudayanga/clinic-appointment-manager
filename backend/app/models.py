@@ -61,7 +61,9 @@ class Patient(SQLModel, table=True):
 
     @property
     def label(self) -> str:
-        return f"{self.full_name} (MRN {self.mrn}, DOB {self.date_of_birth:%d/%m/%Y})"
+        # Date in words ("3 Jan 1998") so it can't be misread as month-first.
+        dob = self.date_of_birth
+        return f"{self.full_name} (MRN {self.mrn}, DOB {dob.day} {dob:%b %Y})"
 
 
 class Appointment(SQLModel, table=True):

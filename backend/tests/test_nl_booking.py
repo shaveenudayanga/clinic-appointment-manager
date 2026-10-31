@@ -75,8 +75,8 @@ def test_ambiguous_names_return_every_match(client, use_parser):
     body = parse(client).json()
     assert body["patient"]["query"] == "Mr Perera"
     assert [p["label"] for p in body["patient"]["matches"]] == [
-        "Ruwan Perera (MRN 000123, DOB 12/04/1968)",
-        "Ruwan Perera (MRN 000133, DOB 12/04/1968)",
+        "Ruwan Perera (MRN 000123, DOB 12 Apr 1968)",
+        "Ruwan Perera (MRN 000133, DOB 12 Apr 1968)",
     ]
     assert body["practitioner"]["query"] == "Dr Silva"
     assert [p["provider_number"] for p in body["practitioner"]["matches"]] == ["000101AA", "000104AD"]

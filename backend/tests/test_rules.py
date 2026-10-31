@@ -184,8 +184,15 @@ def test_clash_message_names_the_right_patient_by_mrn():
     assert "MRN 000123" not in err.value.message
 
 
+def test_date_of_birth_is_written_in_words():
+    # Day first or month first can't be confused: no leading zero, month as a word.
+    assert patient(9, "Kamal Silva", "000134").model_copy(update={"date_of_birth": date(1998, 1, 3)}).label == (
+        "Kamal Silva (MRN 000134, DOB 3 Jan 1998)"
+    )
+
+
 def test_labels_include_identifier():
-    assert PERERA.label == "Ruwan Perera (MRN 000123, DOB 12/04/1968)"
+    assert PERERA.label == "Ruwan Perera (MRN 000123, DOB 12 Apr 1968)"
     assert DR_SILVA.label == "Dr Anika Silva (Cardiology, Provider No. 000101AA)"
 
 

@@ -39,6 +39,18 @@ export function longDate(isoDate: string): string {
   return `${p.weekday} ${p.day} ${p.month} ${p.year}`;
 }
 
+/** "Mon 2 Nov 2026": shown next to date pickers, whose own format follows the browser's locale. */
+export function dayDate(isoDate: string): string {
+  const p = dateParts(isoDate, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  return `${p.weekday} ${p.day} ${p.month} ${p.year}`;
+}
+
+/** "3 Jan 1998": dates of birth, never as numbers that could be read month-first. */
+export function birthDate(isoDate: string): string {
+  const p = dateParts(isoDate, { day: "numeric", month: "short", year: "numeric" });
+  return `${p.day} ${p.month} ${p.year}`;
+}
+
 /** "Mon 2 Nov" */
 export function shortDate(isoDate: string): string {
   const p = dateParts(isoDate, { weekday: "short", day: "numeric", month: "short" });

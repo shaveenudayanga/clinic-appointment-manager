@@ -47,54 +47,57 @@ body {
   outline-offset: 2px;
 }
 
-/* Shared form controls: thin borders, small radius, no shadows. */
-.field {
-  width: 100%;
-  border: 1px solid var(--color-line);
-  border-radius: 3px;
-  background: white;
-  padding: 0.3rem 0.5rem;
-  line-height: 1.4;
-}
-.field:disabled {
-  background: var(--color-page);
-  color: var(--color-muted);
-}
-.field[aria-invalid="true"] {
-  border-color: var(--color-danger);
-}
+/* In the components layer so Tailwind utilities (e.g. w-44) can override them. */
+@layer components {
+  /* Shared form controls: thin borders, small radius, no shadows. */
+  .field {
+    width: 100%;
+    border: 1px solid var(--color-line);
+    border-radius: 3px;
+    background: white;
+    padding: 0.3rem 0.5rem;
+    line-height: 1.4;
+  }
+  .field:disabled {
+    background: var(--color-page);
+    color: var(--color-muted);
+  }
+  .field[aria-invalid="true"] {
+    border-color: var(--color-danger);
+  }
 
-.btn {
-  border: 1px solid var(--color-line);
-  border-radius: 3px;
-  background: white;
-  padding: 0.3rem 0.75rem;
-  line-height: 1.4;
-  white-space: nowrap;
-}
-.btn:hover:not(:disabled) {
-  background: var(--color-page);
-}
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.btn-primary {
-  border-color: var(--color-accent);
-  background: var(--color-accent);
-  color: white;
-  font-weight: 600;
-}
-.btn-primary:hover:not(:disabled) {
-  background: var(--color-accent-hover);
-}
-.btn-danger {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-}
-.btn-danger-solid {
-  border-color: var(--color-danger);
-  background: var(--color-danger);
-  color: white;
-  font-weight: 600;
+  .btn {
+    border: 1px solid var(--color-line);
+    border-radius: 3px;
+    background: white;
+    padding: 0.3rem 0.75rem;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) {
+    background: var(--color-page);
+  }
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+    color: white;
+    font-weight: 600;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-accent-hover);
+  }
+  .btn-danger {
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+  }
+  .btn-danger-solid {
+    border-color: var(--color-danger);
+    background: var(--color-danger);
+    color: white;
+    font-weight: 600;
+  }
 }

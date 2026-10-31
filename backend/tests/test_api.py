@@ -126,8 +126,8 @@ def test_people_lists_include_same_name_records_with_labels(client):
         "Dr Anika Silva (Cardiology, Provider No. 000104AD)",
     ]
     assert [p["label"] for p in pereras] == [
-        "Ruwan Perera (MRN 000123, DOB 12/04/1968)",
-        "Ruwan Perera (MRN 000133, DOB 12/04/1968)",
+        "Ruwan Perera (MRN 000123, DOB 12 Apr 1968)",
+        "Ruwan Perera (MRN 000133, DOB 12 Apr 1968)",
     ]
 
 
@@ -144,7 +144,7 @@ def test_create_returns_utc_and_sydney_times(client):
     assert body["status"] == "booked"
     assert body["notes"] == "Follow-up"
     assert body["practitioner"]["provider_number"] == "000101AA"
-    assert body["patient"]["label"] == "Ruwan Perera (MRN 000123, DOB 12/04/1968)"
+    assert body["patient"]["label"] == "Ruwan Perera (MRN 000123, DOB 12 Apr 1968)"
 
 
 def test_create_accepts_a_time_with_an_offset(client):
@@ -403,7 +403,7 @@ def test_search_by_mrn(client):
     assert search(client, "000128") == ["000128"]
 
 
-@pytest.mark.parametrize("q", ["12/04/1968", "1968-04-12"])
+@pytest.mark.parametrize("q", ["12/04/1968", "1968-04-12", "12 Apr 1968", "12 april 1968"])
 def test_search_by_date_of_birth(client, q):
     assert search(client, q) == ["000123", "000133"]
 
@@ -435,7 +435,7 @@ def test_register_assigns_the_next_mrn(client):
         "mrn": "000134",
         "full_name": "Kamal Silva",
         "date_of_birth": "1990-04-03",
-        "label": "Kamal Silva (MRN 000134, DOB 03/04/1990)",
+        "label": "Kamal Silva (MRN 000134, DOB 3 Apr 1990)",
     }
     assert register(client, full_name="Asha Silva").json()["mrn"] == "000135"
 
@@ -451,8 +451,8 @@ def test_register_same_name_and_birthday_returns_matches(client):
     assert body["code"] == "possible_duplicate"
     assert body["detail"] == "2 patients with this name and date of birth already exist."
     assert [m["label"] for m in body["matches"]] == [
-        "Ruwan Perera (MRN 000123, DOB 12/04/1968)",
-        "Ruwan Perera (MRN 000133, DOB 12/04/1968)",
+        "Ruwan Perera (MRN 000123, DOB 12 Apr 1968)",
+        "Ruwan Perera (MRN 000133, DOB 12 Apr 1968)",
     ]
     assert search(client, "perera") == ["000123", "000133"]  # nothing was saved
 

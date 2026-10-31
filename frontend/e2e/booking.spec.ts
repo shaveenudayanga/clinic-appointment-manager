@@ -38,15 +38,17 @@ test("book an appointment from a free slot", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Book appointment" })).toBeVisible();
   await expect(page.getByLabel("Practitioner", { exact: true })).toHaveValue(/\d+/);
   await expect(page.getByLabel("Start")).toHaveValue("09:00");
+  // The date picker's own format follows the browser; the date is also shown in words.
+  await expect(page.getByLabel("Date", { exact: true })).toHaveAccessibleDescription(/^(Mon|Tue|Wed|Thu|Fri) \d{1,2} [A-Z][a-z]{2} \d{4}$/);
 
-  await choosePatient(page, "000125", "Liam O'Connor (MRN 000125, DOB 27/01/1992)");
+  await choosePatient(page, "000125", "Liam O'Connor (MRN 000125, DOB 27 Jan 1992)");
   await expect(page.getByText("Ends 09:30")).toBeVisible();
   if (saveScreenshots) await page.screenshot({ path: "../docs/screenshots/booking-panel.png" });
 
   await bookButton(page).click();
   await expect(page.getByText("Appointment booked.")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "09:00 to 09:30, Liam O'Connor (MRN 000125, DOB 27/01/1992), Booked" }),
+    page.getByRole("button", { name: "09:00 to 09:30, Liam O'Connor (MRN 000125, DOB 27 Jan 1992), Booked" }),
   ).toBeVisible();
 });
 
@@ -55,7 +57,7 @@ test("a clash shows its error under the practitioner field", async ({ page }) =>
 
   // Dr Silva (000101AA) has 11:00-11:30 booked on this day; 10:45 for 30 minutes runs into it.
   await page.getByRole("button", { name: `Book with ${SILVA} at 10:45` }).click();
-  await choosePatient(page, "000132", "Isla Robinson (MRN 000132, DOB 16/08/1996)");
+  await choosePatient(page, "000132", "Isla Robinson (MRN 000132, DOB 16 Aug 1996)");
   await page.getByLabel("Notes").fill("Kept after the error");
   await bookButton(page).click();
 
@@ -68,8 +70,8 @@ test("a clash shows its error under the practitioner field", async ({ page }) =>
 
 test("cancel an appointment, then see it with Show cancelled", async ({ page }) => {
   await openNextClinicDay(page);
-  const booked = "09:00 to 09:20, Grace Nguyen (MRN 000128, DOB 14/02/1958), Booked";
-  const cancelled = "09:00 to 09:20, Grace Nguyen (MRN 000128, DOB 14/02/1958), Cancelled";
+  const booked = "09:00 to 09:20, Grace Nguyen (MRN 000128, DOB 14 Feb 1958), Booked";
+  const cancelled = "09:00 to 09:20, Grace Nguyen (MRN 000128, DOB 14 Feb 1958), Cancelled";
   await expect(page.getByLabel("Show cancelled (0)")).not.toBeChecked();
 
   await page.getByRole("button", { name: booked }).click();

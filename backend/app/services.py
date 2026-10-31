@@ -147,7 +147,7 @@ def get_patient(session: Session, patient_id: int) -> Patient:
 
 def search_patients(session: Session, query: str, limit: int = 20) -> list[Patient]:
     """Find patients by name (every word must appear), MRN, or date of birth
-    (dd/mm/yyyy or yyyy-mm-dd). An empty query returns everyone, up to `limit`."""
+    (3 Jan 1998, 03/01/1998 day first, or 1998-01-03). An empty query returns everyone, up to `limit`."""
     query = query.strip()
     statement = select(Patient)
     if query:
@@ -190,7 +190,7 @@ def _next_mrn(session: Session) -> str:
 
 
 def _parse_date(text_value: str) -> date | None:
-    for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d %b %Y", "%d %B %Y"):
         try:
             return datetime.strptime(text_value, fmt).date()
         except ValueError:
