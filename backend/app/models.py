@@ -5,7 +5,7 @@ from enum import StrEnum
 
 from sqlalchemy import DateTime, Index
 from sqlalchemy.types import TypeDecorator
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
 
 
 class UTCDateTime(TypeDecorator):
@@ -79,3 +79,6 @@ class Appointment(SQLModel, table=True):
     notes: str = ""
     created_at: datetime = Field(default_factory=_utc_now, sa_type=UTCDateTime, nullable=False)
     updated_at: datetime = Field(default_factory=_utc_now, sa_type=UTCDateTime, nullable=False)
+
+    practitioner: Practitioner = Relationship()
+    patient: Patient = Relationship()

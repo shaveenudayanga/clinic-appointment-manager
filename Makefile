@@ -4,7 +4,7 @@ PYTHON ?= python3
 VENV := backend/.venv
 BIN := $(VENV)/bin
 
-.PHONY: setup backend-setup seed test
+.PHONY: setup backend-setup seed backend test
 
 setup: backend-setup
 
@@ -15,6 +15,9 @@ backend-setup:
 
 seed:
 	cd backend && .venv/bin/python -m app.seed
+
+backend:
+	cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000
 
 test:
 	cd backend && .venv/bin/pytest
